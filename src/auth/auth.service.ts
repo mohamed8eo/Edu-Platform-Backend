@@ -105,14 +105,10 @@ export class AuthService {
     }
   }
 
-  async sendOTP(
-    email: string,
-    type: 'sign-in' | 'email-verification' | 'forget-password',
-  ) {
-    await auth.api.sendVerificationOTP({
+  async sendOTP(email: string) {
+    await auth.api.sendVerificationEmail({
       body: {
         email,
-        type,
       },
     });
   }

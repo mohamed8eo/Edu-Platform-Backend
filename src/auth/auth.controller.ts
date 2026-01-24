@@ -32,7 +32,7 @@ export class AuthController {
   @Post('send-otp')
   @AllowAnonymous()
   async sendOTP(@Body() dto: SendOtpDto) {
-    await this.authService.sendOTP(dto.email, dto.type);
+    await this.authService.sendOTP(dto.email);
 
     return {
       message: 'If the email exists, a verification code has been sent.',
