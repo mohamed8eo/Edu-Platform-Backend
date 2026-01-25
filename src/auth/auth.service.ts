@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { SignUpDto } from './dto/SignUp.dto';
 import { auth } from '../lib/auth';
@@ -14,8 +15,11 @@ import { session, user } from '../db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { APIError } from 'better-auth';
 import cloudinary from '../../cloudinary.config';
+import { UserService } from '../user/user.service';
+import { ResetPasswordDto } from './dto/password.dto';
 @Injectable()
 export class AuthService {
+  constructor(private readonly userService: UserService) {}
   async SignUp(signUp: SignUpDto): Promise<any> {
     try {
       const { email, password, name } = signUp;
@@ -162,7 +166,7 @@ export class AuthService {
       );
     }
   }
-
+  // verfiey Email
   async sendOTP(sendOtp: SendOtpDto) {
     await auth.api.sendVerificationOTP({
       body: {
@@ -182,5 +186,36 @@ export class AuthService {
       },
     });
     return { message: 'Email verified successfully' };
+  }
+
+  // Forget password for SignIn
+  async forgetPassword(email: string) {
+    //Check is this email existing on db
+    const existing = await db.select().from(user).where(eq(user.email, email));
+
+    if (existing.length === 0) throw new NotFoundException('Email not found');
+    await auth.api.forgetPasswordEmailOTP({
+      body: {
+        email: email,
+      },
+    });
+    return {
+      message: 'verification code has been sent.',
+    };
+  }
+
+  async resetPassword(resetPassword: ResetPasswordDto) {
+    const { otp, password, email } = resetPassword;
+
+    await auth.api.resetPasswordEmailOTP({
+      body: {
+        email,
+        otp,
+        password,
+      },
+    });
+    return {
+      message: 'Password reset successfully',
+    };
   }
 }

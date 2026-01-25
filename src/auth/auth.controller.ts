@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Body, Controller, Post, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
@@ -5,6 +6,8 @@ import { SignUpDto } from './dto/SignUp.dto';
 import { SignInDto } from './dto/SignIn.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/sendOTP.dto';
 import type { Request } from 'express';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -43,5 +46,17 @@ export class AuthController {
   @AllowAnonymous()
   async verifyOTP(@Body() verifyOTP: VerifyOtpDto) {
     return await this.authService.verifyOTP(verifyOTP);
+  }
+
+  @Post('forget-password')
+  @AllowAnonymous()
+  async forgetPassword(@Body() forgetPassowrd: ForgotPasswordDto) {
+    return this.authService.forgetPassword(forgetPassowrd.email);
+  }
+
+  @Post('reset-password')
+  @AllowAnonymous()
+  async resetPassword(@Body() resetPassword: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPassword);
   }
 }
