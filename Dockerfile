@@ -1,23 +1,30 @@
-# Use the official Node.js image as the base image
-FROM node:latest
+# -----------------------
+# Build stage
+# -----------------------
+FROM node:lts-slim AS builder
 
-# Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
-# Install the application dependencies
-RUN yarn install
-
-# Copy the rest of the application files
 COPY . .
-
-# Build the NestJS application
 RUN yarn build
 
-# Expose the application port
+
+# -----------------------
+# Production stage
+# -----------------------
+FROM node:lts-slim AS production
+
+ENV NODE_ENV=production
+WORKDIR /usr/src/app
+
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production
+
+COPY --from=builder /usr/src/app/dist ./dist
+
 EXPOSE 3000
 
-# Command to run the application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/main.js"]
