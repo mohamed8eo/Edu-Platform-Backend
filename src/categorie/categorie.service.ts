@@ -78,7 +78,7 @@ export class CategorieService {
 
     return {
       message: 'Category added successfully',
-      result,
+      categorieId: result[0].id,
     };
   }
 
@@ -250,4 +250,5 @@ export class CategorieService {
 
     return coursesList;
   }
+
 }

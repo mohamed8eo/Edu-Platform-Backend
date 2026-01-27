@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Body,
   Controller,
@@ -8,12 +12,14 @@ import {
   Post,
   Query,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CourseService } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import type { Request } from 'express';
 import { CategorieService } from '../categorie/categorie.service';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { UpdateLessonProgressDto } from './dto/update-lesson-progress.dto';
 
 @Controller('course')
 export class CourseController {
@@ -56,19 +62,44 @@ export class CourseController {
     return await this.courseService.deleteCourse(slug);
   }
 
-  @Get(':slug')
-  async getCourse(@Param('slug') slug: string) {
-    return await this.courseService.getCourse(slug);
-  }
-
   // GET http://localhost:3000/users/search?quary=html
   @Get('search')
   async searchCourses(@Query('query') query: string) {
     return await this.courseService.searchCourses(query);
   }
 
+  @Get(':slug')
+  async getCourse(@Param('slug') slug: string) {
+    return await this.courseService.getCourse(slug);
+  }
+
   @Get(':slug/lessons')
   async getCourseLessons(@Param('slug') slug: string) {
     return await this.courseService.getCourseLessons(slug);
+  }
+  @Post(':slug/lessons/:lessonId/progress')
+  async updateLessonProgress(
+    @Req() req: Request,
+    @Param('slug') slug: string,
+    @Param('lessonId') lessonId: string,
+    @Body() body: UpdateLessonProgressDto,
+  ) {
+    const user = (req as any).user;
+    if (!user?.id) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+
+    // Find courseId by slug
+    const courseData = await this.courseService.getCourse(slug);
+    const courseId = courseData.course.id;
+
+    const { completed } = body;
+
+    return this.courseService.markLessonProgress(
+      user.id,
+      courseId,
+      lessonId,
+      completed,
+    );
   }
 }

@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCourseDto {
@@ -11,29 +12,36 @@ export class CreateCourseDto {
 
   @IsString()
   @IsNotEmpty()
+  @ApiProperty()
   thumbnail?: string;
 
   @IsString()
   @IsNotEmpty()
+  @ApiProperty()
   level?: string;
 
   @IsString()
   @IsNotEmpty()
+  @ApiProperty()
   language?: string;
 
   @IsArray()
   @IsString({ each: true })
+  @ApiProperty()
   categoryIds: string[];
 
   @IsString()
   @IsOptional()
+  @ApiProperty()
   youtubeUrl?: string;
 
   @IsString()
   @IsOptional()
+  @ApiProperty()
   youtubePlaylistId?: string;
 
   @IsString()
   @IsOptional()
+  @ApiProperty()
   youtubeVideoId?: string;
 }

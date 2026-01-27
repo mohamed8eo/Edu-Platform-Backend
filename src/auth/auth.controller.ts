@@ -8,25 +8,33 @@ import { SendOtpDto, VerifyOtpDto } from './dto/sendOTP.dto';
 import type { Request } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/password.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('sign-up')
   @AllowAnonymous()
+  @ApiOperation({ summary: 'User sign up' })
+  @ApiResponse({ status: 201, description: 'User signed up successfully.' })
   async SignUp(@Body() signUp: SignUpDto) {
     return await this.authService.SignUp(signUp);
   }
 
   @Post('sign-in')
   @AllowAnonymous()
+  @ApiOperation({ summary: 'User sign in' })
+  @ApiResponse({ status: 201, description: 'User signed in successfully.' })
   async SignIn(@Body() signIn: SignInDto, @Req() req: Request) {
     return await this.authService.SignIn(signIn, req);
   }
 
   @Post('sign-out')
   @AllowAnonymous() // Allow access, but validate token in service
+  @ApiOperation({ summary: 'User sign out' })
+  @ApiResponse({ status: 201, description: 'User signed out successfully.' })
   async SignOut(@Req() req: Request) {
     await this.authService.SignOut(req);
     return { message: 'Signed out successfully' };
@@ -34,6 +42,8 @@ export class AuthController {
 
   @Post('send-otp')
   @AllowAnonymous()
+  @ApiOperation({ summary: 'Send OTP' })
+  @ApiResponse({ status: 201, description: 'OTP sent successfully.' })
   async sendOTP(@Body() sendOtp: SendOtpDto) {
     await this.authService.sendOTP(sendOtp);
 
@@ -44,18 +54,24 @@ export class AuthController {
 
   @Post('verify-OTP')
   @AllowAnonymous()
+  @ApiOperation({ summary: 'Verify OTP' })
+  @ApiResponse({ status: 201, description: 'OTP verified successfully.' })
   async verifyOTP(@Body() verifyOTP: VerifyOtpDto) {
     return await this.authService.verifyOTP(verifyOTP);
   }
 
   @Post('forget-password')
   @AllowAnonymous()
+  @ApiOperation({ summary: 'Forgot password request' })
+  @ApiResponse({ status: 201, description: 'Password reset email sent.' })
   async forgetPassword(@Body() forgetPassowrd: ForgotPasswordDto) {
     return this.authService.forgetPassword(forgetPassowrd.email);
   }
 
   @Post('reset-password')
   @AllowAnonymous()
+  @ApiOperation({ summary: 'Reset password' })
+  @ApiResponse({ status: 201, description: 'Password reset successfully.' })
   async resetPassword(@Body() resetPassword: ResetPasswordDto) {
     return this.authService.resetPassword(resetPassword);
   }

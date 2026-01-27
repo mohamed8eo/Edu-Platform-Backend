@@ -6,13 +6,20 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import slugify from 'slugify';
 import { db } from '../db';
-import { lessons, courseCategories, courses } from '../db/schema';
-import { eq, or, ilike } from 'drizzle-orm';
+import {
+  lessons,
+  courseCategories,
+  courses,
+  userCourses,
+  lessonProgress,
+} from '../db/schema';
+import { eq, or, ilike, and, sql } from 'drizzle-orm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 
@@ -35,7 +42,6 @@ export class CourseService {
 
     //  Resolve YouTube source
     let youtubePlaylistId: string | null = null;
-    let youtubeVideoId: string | null = null;
     let lessonsPayload: {
       videoId: string;
       title: string;
@@ -57,7 +63,6 @@ export class CourseService {
       } else {
         const video = await this.fetchSingleVideo(candidateId);
         if (video) {
-          youtubeVideoId = candidateId;
           lessonsPayload = [video];
         }
       }
@@ -74,7 +79,6 @@ export class CourseService {
         level: dto.level,
         language: dto.language,
         youtubePlaylistId,
-        youtubeVideoId,
       })
       .returning();
 
@@ -96,7 +100,7 @@ export class CourseService {
           title: l.title,
           youtubeVideoId: l.videoId,
           thumbnail: l.thumbnail,
-          position: index.toString(),
+          position: index,
           duration: l.duration ?? '',
         })),
       );
@@ -179,7 +183,7 @@ export class CourseService {
     }
     return {
       message: 'Courses found',
-      Courses: [coursesInfo],
+      courses: coursesInfo,
     };
   }
 
@@ -346,5 +350,105 @@ export class CourseService {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  async markLessonProgress(
+    userId: string,
+    courseId: string,
+    lessonId: string,
+    completed = true,
+  ) {
+    return await db.transaction(async (tx) => {
+      // 1️⃣ Check enrollment
+      const [enrollment] = await tx
+        .select({ userId: userCourses.userId })
+        .from(userCourses)
+        .where(
+          and(
+            eq(userCourses.userId, userId),
+            eq(userCourses.courseId, courseId),
+          ),
+        );
+
+      if (!enrollment) {
+        throw new ForbiddenException('You are not enrolled in this course.');
+      }
+
+      // 2️⃣ Check lesson exists in course
+      const [lesson] = await tx
+        .select()
+        .from(lessons)
+        .where(and(eq(lessons.id, lessonId), eq(lessons.courseId, courseId)))
+        .limit(1);
+
+      if (!lesson)
+        throw new NotFoundException('Lesson not found in this course');
+
+      // 3️⃣ Upsert lesson progress
+      await tx
+        .insert(lessonProgress)
+        .values({
+          userId,
+          lessonId,
+          completed,
+          completedAt: completed ? new Date() : null,
+        })
+        .onConflictDoUpdate({
+          target: [lessonProgress.userId, lessonProgress.lessonId],
+          set: {
+            completed,
+            completedAt: completed ? new Date() : null,
+          },
+        });
+
+      // 4️⃣ Compute course progress
+      const totalLessonsResult = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(lessons)
+        .where(eq(lessons.courseId, courseId));
+      const totalLessons = totalLessonsResult[0].count;
+
+      const completedLessonsResult = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(lessonProgress)
+        .innerJoin(lessons, eq(lessons.id, lessonProgress.lessonId))
+        .where(
+          and(
+            eq(lessonProgress.userId, userId),
+            eq(lessons.courseId, courseId),
+            eq(lessonProgress.completed, true),
+          ),
+        );
+      const completedLessons = completedLessonsResult[0].count;
+
+      const progress =
+        totalLessons > 0
+          ? Math.round((completedLessons / totalLessons) * 100)
+          : 0;
+
+      // 5️⃣ Update course enrollment
+      await tx
+        .update(userCourses)
+        .set({
+          progress,
+          status: progress === 100 ? 'completed' : 'active',
+          completedAt: progress === 100 ? new Date() : null,
+        })
+        .where(
+          and(
+            eq(userCourses.userId, userId),
+            eq(userCourses.courseId, courseId),
+          ),
+        );
+
+      // 6️⃣ Return response
+      return {
+        lessonId,
+        courseId,
+        lessonCompleted: completed,
+        courseProgress: progress,
+        courseStatus: progress === 100 ? 'completed' : 'active',
+      };
+    });
   }
 }

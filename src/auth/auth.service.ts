@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   InternalServerErrorException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { SignUpDto } from './dto/SignUp.dto';
 import { auth } from '../lib/auth';
@@ -62,6 +63,8 @@ export class AuthService {
 
       return {
         message: 'Sign up successful.',
+        token: result.token,
+        userId: result.user.id,
       };
     } catch (error) {
       if (error instanceof APIError) {
@@ -85,14 +88,26 @@ export class AuthService {
         },
         headers: req.headers as any,
       });
+      const user = result.user;
 
+      if (user.banned) {
+        throw new ForbiddenException({
+          message: 'User is banned',
+          banned: user.banned,
+          banExpires: user.banExpires,
+        });
+      }
       // Single session mode: Invalidate all other sessions for this user
       // This ensures only one active session per user (most secure)
-      if (result.user?.id) {
+      if (user?.id) {
         await this.invalidateOtherSessions(result.user.id, result.token);
       }
-
-      return result;
+      return {
+        message: 'Sign in successful.',
+        token: result.token,
+        userId: user.id,
+        userRole: user.role,
+      };
     } catch (error) {
       if (error instanceof APIError) {
         throw new UnauthorizedException(error.message);
