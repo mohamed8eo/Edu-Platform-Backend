@@ -3,6 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.log('DATABASE_URL from env:', process.env.DATABASE_URL);
   const app = await NestFactory.create(AppModule, {
     bodyParser: false, // Required for Better Auth
     cors: true,
