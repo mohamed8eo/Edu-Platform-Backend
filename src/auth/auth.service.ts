@@ -33,6 +33,11 @@ export class AuthService {
         },
       });
 
+      //send OTP
+      if (result) {
+        await this.sendOTP({ email, type: 'email-verification' });
+      }
+
       if (!result?.user) return result;
 
       try {
