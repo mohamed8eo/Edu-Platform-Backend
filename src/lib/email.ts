@@ -1,46 +1,59 @@
 export async function sendOTPEmail(email: string, otp: string, type: string) {
-  // Check for development environment
-  const isDev = process.env.NODE_ENV === 'development';
+  const isProd = process.env.NODE_ENV === 'production';
 
-  // Development: Log to console
-  if (isDev) {
-    console.log(`\n📧 [Email OTP] ${type} → ${email}`);
+  // =========================
+  // Development mode
+  // =========================
+  if (!isProd) {
+    console.log(`\n📧 [DEV OTP] ${type} → ${email}`);
     console.log(`🔑 OTP Code: ${otp}`);
     console.log(`⏰ Valid for 5 minutes\n`);
-    // return;
+    return;
   }
 
-  // Production: Send real email via Resend
-  if (process.env.RESEND_API_KEY) {
-    const { Resend } = await import('resend');
-    const resend = new Resend(process.env.RESEND_API_KEY);
+  // =========================
+  // Production safety checks
+  // =========================
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[EMAIL] RESEND_API_KEY is missing');
+    return;
+  }
 
-    const subject =
-      type === 'sign-in'
-        ? 'Your Sign-In Code'
-        : type === 'email-verification'
-          ? 'Verify Your Email'
-          : 'Reset Your Password';
+  const { Resend } = await import('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const html = `
-      <h2>Your Verification Code</h2>
-      <p>Your code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otp}</strong></p>
-      <p>This code will expire in 5 minutes.</p>
-      <p>If you didn't request this code, please ignore this email.</p>
-    `;
+  const subject =
+    type === 'sign-in'
+      ? 'Your sign-in code'
+      : type === 'email-verification'
+        ? 'Verify your email address'
+        : 'Reset your password';
 
-    // Don't await - Better Auth runs this in background to avoid timing attacks
-    void resend.emails.send({
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6">
+      <h2>Your verification code</h2>
+      <p>Use the code below to continue:</p>
+      <p style="
+        font-size: 28px;
+        font-weight: bold;
+        letter-spacing: 6px;
+        margin: 16px 0;
+      ">
+        ${otp}
+      </p>
+      <p>This code will expire in <strong>5 minutes</strong>.</p>
+      <p>If you didn’t request this code, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
       from: 'onboarding@resend.dev',
       to: email,
       subject,
       html,
     });
-    return;
+  } catch (error) {
+    console.error('[EMAIL FAILED]', error);
   }
-
-  // Fallback: Warn if no email service configured
-  console.warn(
-    `[Email OTP] No email service configured. OTP for ${email}: ${otp}`,
-  );
 }
