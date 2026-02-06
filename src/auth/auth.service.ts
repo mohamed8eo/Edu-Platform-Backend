@@ -206,7 +206,7 @@ export class AuthService {
     try {
       await auth.api.signOut({
         headers: {
-          authorization: authHeader,
+          Authorization: authHeader,
         },
       });
     } catch (error) {
