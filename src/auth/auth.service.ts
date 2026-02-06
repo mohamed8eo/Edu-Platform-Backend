@@ -137,7 +137,7 @@ export class AuthService {
       const result = await auth.api.signInSocial({
         body: {
           provider: socialLoginDto.provider,
-          callbackURL: 'http://localhost:3000/home',
+          callbackURL: process.env.CALLBACK_URL,
         },
       });
 
